@@ -274,7 +274,7 @@ def _statements(frame, allocations, parts, budget, plan):
             if setting["level"] > 0:
                 parts_text.append(f"{floor_share:.0%} came from the guaranteed minimum of {setting['level']:.0%} of need")
             if top_share > 0.0005:
-                parts_text.append(f"{top_share:.0%} came from the emergency reserve, paid after the month because its coverage was among the lowest")
+                parts_text.append(f"{top_share:.0%} came from the emergency reserve, paid after the month to lift the regions with the lowest coverage to a common level")
             elif setting["reserve"] > 0:
                 parts_text.append("no emergency top-up was needed")
             adjustment_text = "; ".join(f"{FEATURE_LABELS[name]} {'raised' if f >= 1 else 'lowered'} its claim by {abs(f - 1):.0%}" for name, f in adjustments) or "no indicator changed its claim by more than 0.5%"

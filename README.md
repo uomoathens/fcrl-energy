@@ -138,7 +138,25 @@ The first run on real data used an earlier version of the chain, with a single g
 2. **Early-summer heatwaves are the main source of unprotected need.** Cooling need in June exceeded the bound derived from past forecast errors in 43% of regions in 2022, 35% in 2024 and 62% in 2025, while winter misses stayed mostly below 10%. The lowest regional coverage was 0.32 to 0.41 in summer against 0.57 to 0.63 in winter.
 3. **A guarantee sized for summer uncertainty consumes most of the budget.** The adaptive bound on need relative to forecast reached 1.6 to 2.0 in summer against about 1.2 in winter, so a meaningful summer guarantee left little budget for the policy, and the earlier selection rule, which looked only at average coverage of the worst-off, kept no guarantee at all. The present version therefore selects the guarantee separately for each season, as the largest that harms neither total nor worst-off coverage, and adds the emergency reserve for shortfalls that no forecast can foresee.
 
-Results of the present version on real data will be reported here once reviewed.
+### Present version
+
+On the same 63 regions and test seasons, the present version selected on the 2022 crisis year a guaranteed minimum of 40% of need in winter and 20% in summer, and an emergency reserve of 10% of the budget in both seasons.
+
+| Rule | Share of vulnerable need covered | Coverage of the worst-off tenth of regions | Lowest regional coverage | Gap between 90th and 10th percentile | Support above need |
+|---|---|---|---|---|---|
+| Equal amount per resident at risk of poverty | 0.581 | 0.322 | 0.244 | 0.625 | 5.0% |
+| Proportional to forecast need | 0.611 | 0.467 | 0.282 | 0.152 | 0.2% |
+| **FCRL-energy** | **0.611** | **0.539** | **0.409** | **0.071** | **0.1%** |
+| Hindsight benchmark (not implementable) | 0.612 | 0.554 | 0.442 | 0.018 | 0.0% |
+
+- **The worst-off regions gain most.** Against an equal amount per resident at risk of poverty, the coverage of the worst-off tenth of regions rose by 0.217 (95% CI 0.185 to 0.239), the lowest coverage of any region in any season rose from 0.244 to 0.409, and the gap between regions fell by 0.554 (95% CI 0.485 to 0.583), with no loss in total coverage (+0.030, 95% CI −0.012 to 0.075). Against forecast-proportional sharing, the gain for the worst-off was 0.072 (95% CI 0.058 to 0.082), which closes 83% of the distance to the hindsight benchmark.
+- **The guarantee held.** The guaranteed minimum was met in every test region-month, and the forecast bound was exceeded in 9.1% of region-months against a target of 10%.
+- **Summer remains the harder season.** The lowest summer coverage rose from 0.28 to 0.37 under forecast-proportional sharing to 0.41 to 0.50, but stayed below the winter range of 0.62 to 0.69. The reserve did most of this work: on validation, coverage of the worst-off tenth in summer rose from 0.343 without a reserve to 0.418 with it.
+- **The reserve acts as a settlement, not only as an emergency fund.** It was fully used in every test season and reached between 57 and 63 of the 63 regions, because water-filling lifts every region below the common level. On validation, worst-off coverage rose with every increase in the reserve up to the 10% cap, so a larger reserve would protect the worst-off further, at the cost of paying more of the support after the month.
+- **Resilience under shocks.** Under a 30% price rise combined with a 20% budget cut, the guarantee held in 84.8% of region-months against 72.9% under the equal amount per resident at risk of poverty, and the lowest regional coverage was 0.250 against 0.150.
+- **What the learned policy adds.** The weights learned for the five indicators change a region's claim by 5% or less for a one-standard-deviation difference in any indicator. Most of the gain comes from sharing by forecast need, from the guaranteed minimum and from the reserve; the learned policy fine-tunes the shares within them.
+
+In policy terms, the results suggest that an energy allowance should be shared in proportion to the forecast energy need of residents at risk of poverty rather than by a flat amount per resident, should guarantee every region a minimum share of its need, and should keep a small reserve that is settled after each month in favour of the regions left furthest behind.
 
 ## Limitations
 
