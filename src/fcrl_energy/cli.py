@@ -6,7 +6,8 @@ from pathlib import Path
 import yaml
 
 from .pipeline import run
-from .report import markdown, write_excel
+from .figures import write_all
+from .report import add_charts, markdown, write_excel
 
 
 def main(argv=None):
@@ -19,7 +20,10 @@ def main(argv=None):
     arguments = parser.parse_args(argv)
     config = yaml.safe_load(Path(arguments.config).read_text(encoding="utf-8"))
     result = run(config)
-    report = write_excel(result, Path(arguments.output) / "energy_support_report.xlsx")
+    output = Path(arguments.output)
+    report = write_excel(result, output / "energy_support_report.xlsx")
+    images = write_all(result.performance, result.regional, result.stress, output / "figures")
+    add_charts(report, images)
     print(
         json.dumps(
             {

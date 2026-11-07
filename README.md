@@ -44,6 +44,26 @@ Governments answer with heating and cooling allowances, but the budget is fixed 
 8. **Tests resilience.** Every rule is re-run under an unexpected 30% rise in energy prices, a 20% cut in the budget and both together.
 9. **Explains every allocation.** Each region receives a statement in plain language: how much it received, how much came from the guarantee and from the reserve, what raised or lowered its share and how much of its need was covered.
 
+## Results at a glance
+
+The charts below come from the real-data run on 63 regions of Greece, Bulgaria, Spain, Portugal and Italy, test seasons 2023 to 2025, with the same budget for every rule. Every run of the workflow redraws them and adds them to its report.
+
+![Coverage of the worst-off tenth of regions under each rule](docs/figures/worst_off_coverage.png)
+
+With the same budget, FCRL-energy covers 54% of the need of the worst-off tenth of regions, against 32% under an equal amount per resident at risk of poverty, and comes within two percentage points of a benchmark that would know the future (55%).
+
+![Coverage of every region in every test season under three rules](docs/figures/regional_coverage.png)
+
+An equal amount per resident at risk of poverty covers the full need of some regions and less than a quarter of it in others. FCRL-energy narrows that range and lifts the lowest coverage from 24% to 41%.
+
+![Lowest regional coverage under price and budget shocks](docs/figures/stress_tests.png)
+
+The protection holds under shocks: with energy prices 30% higher than forecast and the budget cut by 20%, the least protected region still receives 25% of its need, against 15% under an equal amount per resident at risk of poverty.
+
+![Lowest regional coverage in each country](docs/figures/by_country.png)
+
+The least protected region gains in Greece, Italy, Bulgaria and Spain. In Portugal its coverage falls from 55% to 46%: the flat rule over-covered the mild Portuguese regions, and FCRL-energy moves that money to regions elsewhere whose coverage was far lower. Even so, Portugal's least protected region, at 46%, remains better covered than the least protected region of any other country.
+
 ## Operational extensions
 
 The book defines the frameworks and their layers. The extensions below build on that foundation to carry it into operational use for energy support.

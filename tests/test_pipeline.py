@@ -47,6 +47,8 @@ def test_cli_writes_report(tmp_path):
     summary = tmp_path / "summary.md"
     assert main(["run", "--config", str(path), "--output", str(tmp_path / "out"), "--summary", str(summary)]) == 0
     sheets = pd.read_excel(tmp_path / "out" / "energy_support_report.xlsx", sheet_name=None)
-    assert {"Summary", "Strategies", "Allocation statements", "Stress tests", "Guarantee", "Emergency reserve", "Data sources"} <= set(sheets)
+    assert {"Summary", "Charts", "Strategies", "Allocation statements", "Stress tests", "Guarantee", "Emergency reserve", "Data sources"} <= set(sheets)
+    figures = sorted(path.name for path in (tmp_path / "out" / "figures").glob("*.png"))
+    assert figures == ["by_country.png", "regional_coverage.png", "stress_tests.png", "worst_off_coverage.png"]
     assert "FCRL-energy" in summary.read_text(encoding="utf-8")
     assert np.isfinite(sheets["Strategies"]["overall_coverage"]).all()

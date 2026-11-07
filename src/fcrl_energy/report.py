@@ -2,6 +2,8 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from openpyxl import load_workbook
+from openpyxl.drawing.image import Image
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
@@ -100,6 +102,20 @@ def write_excel(result, path):
         for name, frame in sheets.items():
             frame.to_excel(writer, sheet_name=name[:31], index=False)
             _format(writer.sheets[name[:31]])
+    return path
+
+
+def add_charts(path, images):
+    workbook = load_workbook(path)
+    sheet = workbook.create_sheet("Charts", 1)
+    row = 1
+    for image_path in images:
+        image = Image(str(image_path))
+        image.width = int(image.width * 0.55)
+        image.height = int(image.height * 0.55)
+        sheet.add_image(image, f"A{row}")
+        row += int(image.height / 20) + 2
+    workbook.save(path)
     return path
 
 
