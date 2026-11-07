@@ -3,6 +3,8 @@
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24033903.svg)](https://doi.org/10.5281/zenodo.24033903) [![CI](../../actions/workflows/ci.yml/badge.svg)](../../actions/workflows/ci.yml)
 [![Energy support run](../../actions/workflows/energy-support.yml/badge.svg)](../../actions/workflows/energy-support.yml)
 
+**[Open the interactive dashboard →](https://uomoathens.github.io/fcrl-energy/)** Explore every region and season, filter by country, switch between shocks and read why each region received what it did.
+
 **Dimitrios Sargiotis** · School of Civil Engineering, National Technical University of Athens · [ORCID 0009-0006-3644-4561](https://orcid.org/0009-0006-3644-4561) · [users.ntua.gr/dims](https://users.ntua.gr/dims/)
 
 This repository develops frameworks introduced in
@@ -46,7 +48,7 @@ Governments answer with heating and cooling allowances, but the budget is fixed 
 
 ## Results at a glance
 
-The charts below come from the real-data run on 63 regions of Greece, Bulgaria, Spain, Portugal and Italy, test seasons 2023 to 2025, with the same budget for every rule. Every run of the workflow redraws them and adds them to its report.
+The charts below come from the real-data run on 63 regions of Greece, Bulgaria, Spain, Portugal and Italy, test seasons 2023 to 2025, with the same budget for every rule. Every run of the workflow redraws them, adds them to its report and republishes the [interactive dashboard](https://uomoathens.github.io/fcrl-energy/), where every value can be read on hover and every chart has a table view.
 
 ![Coverage of the worst-off tenth of regions under each rule](docs/figures/worst_off_coverage.png)
 
@@ -124,14 +126,14 @@ The real-data configuration covers the NUTS 2 regions of Greece, Bulgaria, Spain
 
 ## Outputs
 
-Each run writes an Excel report with the sheets Summary, Strategies, Compared with other rules, Selection on validation, Emergency reserve, Stress tests, Allocation statements, Policy weights, Regional coverage, Guarantee, Training history, Data coverage and Data sources. Coverage measures are reported with 95% confidence intervals from a bootstrap over regions.
+Each run writes an interactive dashboard (`dashboard.html`, in light and dark mode), the four charts as PNG files and an Excel report with the sheets Summary, Charts, Strategies, Compared with other rules, Selection on validation, Emergency reserve, Stress tests, Allocation statements, Policy weights, Regional coverage, Guarantee, Training history, Data coverage and Data sources. Coverage measures are reported with 95% confidence intervals from a bootstrap over regions.
 
 ## Running it on GitHub
 
 Nothing needs to be run locally.
 
 - **CI** runs the test suite on Python 3.10 to 3.13 on every push and pull request, including a test of the full real-data path against a simulated Eurostat API.
-- **Energy support run** runs on every push to `main`, every Monday at 04:41 UTC and on demand (Actions → Energy support run → Run workflow). It runs the synthetic demonstration and the real-data configuration, writes the main tables to the run summary and uploads both reports as the `energy-support-reports` artifact.
+- **Energy support run** runs on every push to `main`, every Monday at 04:41 UTC and on demand (Actions → Energy support run → Run workflow). It runs the synthetic demonstration and the real-data configuration, writes the main tables to the run summary, uploads both reports as the `energy-support-reports` artifact and publishes the real-data dashboard to GitHub Pages, with the synthetic one at `synthetic.html`. Publishing requires Settings → Pages → Source: GitHub Actions, set once.
 
 ## Results on synthetic data
 

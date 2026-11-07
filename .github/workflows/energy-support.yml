@@ -10,6 +10,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
 jobs:
   run:
     runs-on: ubuntu-latest
@@ -39,3 +43,24 @@ jobs:
           name: energy-support-reports
           path: outputs/
           retention-days: 90
+      - name: Assemble the dashboard site
+        run: |
+          mkdir -p site
+          cp outputs/europe_south/dashboard.html site/index.html
+          cp outputs/synthetic/dashboard.html site/synthetic.html
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+
+  deploy:
+    needs: run
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -50,5 +50,7 @@ def test_cli_writes_report(tmp_path):
     assert {"Summary", "Charts", "Strategies", "Allocation statements", "Stress tests", "Guarantee", "Emergency reserve", "Data sources"} <= set(sheets)
     figures = sorted(path.name for path in (tmp_path / "out" / "figures").glob("*.png"))
     assert figures == ["by_country.png", "regional_coverage.png", "stress_tests.png", "worst_off_coverage.png"]
+    page = (tmp_path / "out" / "dashboard.html").read_text(encoding="utf-8")
+    assert "__DATA__" not in page and '"performance"' in page and "FCRL-energy" in page
     assert "FCRL-energy" in summary.read_text(encoding="utf-8")
     assert np.isfinite(sheets["Strategies"]["overall_coverage"]).all()
