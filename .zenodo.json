@@ -1,0 +1,34 @@
+{
+  "upload_type": "software",
+  "title": "FCRL-energy: fair and sustainable allocation of energy support under price shocks",
+  "version": "1.0.0",
+  "language": "eng",
+  "license": "MIT",
+  "description": "<p>Runnable, tested decision system developed from the FCRL-MARL, SC-RL and XRL-URM frameworks of <em>AI with Integrity: Shaping Ethical, Transparent, and Equitable Urban Futures</em> (Springer Nature, 2026), Chapter 3.</p><p>It shares a fixed energy support budget among regions before need is known, guarantees every region a minimum share of its need through adaptive conformal inference that stays valid after price shocks, shares the rest with a policy trained to protect the worst-off regions first while avoiding support above need, and explains every allocation in plain language. It is evaluated on synthetic data and on Eurostat degree-day, poverty, population and energy price data for the NUTS 2 regions of Greece, Bulgaria, Spain, Portugal and Italy, with stress tests for price rises and budget cuts.</p>",
+  "creators": [
+    {
+      "name": "Sargiotis, Dimitrios",
+      "affiliation": "School of Civil Engineering, National Technical University of Athens",
+      "orcid": "0009-0006-3644-4561"
+    }
+  ],
+  "keywords": [
+    "energy poverty",
+    "energy support",
+    "fair allocation",
+    "multi-agent reinforcement learning",
+    "conformal prediction",
+    "prioritarian welfare",
+    "explainable AI",
+    "sustainability",
+    "Eurostat"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "10.1007/978-3-032-31133-7",
+      "relation": "isSupplementTo",
+      "resource_type": "publication-book",
+      "scheme": "doi"
+    }
+  ]
+}

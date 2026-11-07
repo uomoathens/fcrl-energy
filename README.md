@@ -1,0 +1,155 @@
+# FCRL-energy: fair and sustainable allocation of energy support under price shocks
+
+[![CI](../../actions/workflows/ci.yml/badge.svg)](../../actions/workflows/ci.yml)
+[![Energy support run](../../actions/workflows/energy-support.yml/badge.svg)](../../actions/workflows/energy-support.yml)
+
+**Dimitrios Sargiotis** · School of Civil Engineering, National Technical University of Athens · [ORCID 0009-0006-3644-4561](https://orcid.org/0009-0006-3644-4561) · [users.ntua.gr/dims](https://users.ntua.gr/dims/)
+
+This repository develops frameworks introduced in
+
+> Sargiotis, D. (2026). *AI with Integrity: Shaping Ethical, Transparent, and Equitable Urban Futures*. Springer Nature Switzerland. Chapter 3, Ethically Governed AI Frameworks for Fair, Transparent, and Sustainable Urban Resource Management. https://doi.org/10.1007/978-3-032-31133-7
+
+into a runnable decision system for one of the most pressing problems in European cities: how to share a limited energy support budget among regions so that the households least able to heat or cool their homes are protected first.
+
+| Framework in the book | Role in this repository | Module |
+|---|---|---|
+| Fairness-Constrained Multi-Agent Reinforcement Learning for Urban Resource Allocation (FCRL-MARL) | Fairness-constrained allocation; every region acts as an agent with a shared policy competing for one budget | `policy.py`, `pipeline.py` |
+| Sustainability-Constrained Reinforcement Learning (SC-RL) | Penalty on support beyond need, with unmet need treated as the human comfort cost | `policy.py` |
+| Explainable Reinforcement Learning for Urban Resource Management (XRL-URM) | Plain-language statement for every regional allocation | `pipeline.py` |
+
+The book sets out the architecture and its mathematical core: resource allocation subject to a fairness disparity constraint $`D_{\text{fair}}(f_w(X),S) \le \tau`$, a multi-agent value function that balances each agent's reward against environmental impact,
+
+```math
+V_{\text{MARL}}(s_t,a_t) = \sum_{k=1}^{K} \mathbb{E}\left[ R_k(s_t,a_t) - \lambda E_k(s_t,a_t) \right],
+```
+
+a sustainability-adjusted value that weighs efficiency against human comfort, and an explainability layer that makes each decision traceable. Building on that foundation, this repository applies the frameworks to energy support under price shocks and extends them in four operational directions, described below.
+
+## Why it matters
+
+Energy poverty is now one of the sharpest social consequences of high prices and falling purchasing power. In 2024, 19.0% of people in Greece and in Bulgaria could not keep their homes adequately warm, the highest shares in the EU, against 9.2% across the Union (Eurostat, February 2026). Among people below the poverty line in Greece the share was 43.6%. In Southern Europe the problem also returns in summer, when households cannot afford to cool their homes during heatwaves.
+
+Governments answer with heating and cooling allowances, but the budget is fixed in advance while need depends on how cold the winter or how hot the summer turns out to be and on how energy prices move. A rule that looks fair on paper, such as an equal amount per resident at risk of poverty, can leave households in colder regions, or in regions hit hardest by a price rise, with a much smaller share of their need covered than households elsewhere. This repository makes that trade-off measurable and offers an allocation rule that protects the worst-off regions first, guarantees a minimum, stays within the budget and explains every decision.
+
+## What it does
+
+1. **Measures need.** For every region and month, the energy need of residents at risk of poverty is estimated from heating degree days in winter, cooling degree days in summer and the national energy price index.
+2. **Allocates before the month begins.** The budget is set and shared using only information available at the end of the previous month: normal weather for the season, last month's conditions and the latest prices.
+3. **Guarantees a minimum.** Every region receives a guaranteed share of its need, sized so that forecast errors break the guarantee only at a chosen low rate, and the size of the guarantee adapts automatically after price shocks.
+4. **Shares the rest fairly.** A policy shared by all regions shares the remaining budget, trained to maximise the welfare of the worst covered first, to keep the gap between regions within a limit and to avoid paying above need.
+5. **Selects its settings on a crisis year.** The guaranteed minimum is chosen on 2022, the year of the energy crisis, and only if it does not lower total coverage.
+6. **Compares with the rules in use.** The same budget is shared by an equal amount per resident, an equal amount per resident at risk of poverty, last year's need and forecast need, alongside a hindsight benchmark that knows the future.
+7. **Tests resilience.** Every rule is re-run under an unexpected 30% rise in energy prices, a 20% cut in the budget and both together.
+8. **Explains every allocation.** Each region receives a statement in plain language: how much it received, how much came from the guarantee, what raised or lowered its share and how much of its need was covered.
+
+## Operational extensions
+
+The book defines the frameworks and their layers. The extensions below build on that foundation to carry it into operational use for energy support.
+
+**1. Decisions taken before need is known.** Need for region $`r`$ in month $`t`$ and its forecast at the end of month $`t-1`$ are
+
+```math
+n_{r,t} = V_r \left( D_{r,t} + d_0 \right) p_{c(r),t}, \qquad \hat{n}_{r,t} = V_r \left( \bar{D}_{r,m(t)} + d_0 \right) p_{c(r),t-1},
+```
+
+where $`V_r`$ is the number of residents at risk of poverty, $`D_{r,t}`$ the heating or cooling degree days, $`\bar{D}_{r,m(t)}`$ their normal value for the calendar month, $`d_0`$ a base need and $`p_{c,t}`$ the national energy price index. The budget is a fixed share of forecast need, $`B_t = \beta \sum_r \hat{n}_{r,t}`$, and coverage is $`c_{r,t} = \min(a_{r,t}, n_{r,t}) / n_{r,t}`$.
+
+**2. A guaranteed minimum that holds under price shocks.** Each region receives a guaranteed part of its forecast need and the rest is shared by the policy of the multi-agent framework:
+
+```math
+a_{r,t} = \phi\, q_t\, \hat{n}_{r,t} + \Big( B_t - \sum_j \phi\, q_t\, \hat{n}_{j,t} \Big) \frac{\hat{n}_{r,t}\, e^{\theta^\top z_{r,t}}}{\sum_j \hat{n}_{j,t}\, e^{\theta^\top z_{j,t}}}.
+```
+
+Whenever need does not exceed $`q_t`$ times its forecast, region $`r`$ is covered at least at the level $`\phi`$. The bound $`q_t`$ is a conformal quantile of past need-to-forecast ratios, and its level is adjusted after every month by adaptive conformal inference (Gibbs and Candès, 2021),
+
+```math
+\alpha_{t+1} = \alpha_t + \gamma \left( \delta - \mathrm{err}_t \right),
+```
+
+so that the long-run share of region-months in which the guarantee is missed tends to the target $`\delta`$ even when prices shift abruptly. If the budget cannot afford the guarantee in a given month, it is scaled down and the shortfall is reported.
+
+**3. Prioritarian fairness with an explicit sustainability term.** The book's reward and environmental penalty $`R_k - \lambda E_k`$ and its fairness constraint $`D_{\text{fair}} \le \tau`$ are made concrete for energy support. The shared policy weights $`\theta`$ are trained on past seasons to maximise
+
+```math
+\frac{1}{T} \sum_t \left[ \sum_r \frac{V_r}{\sum_j V_j}\, u(c_{r,t}) - \lambda\, \frac{\sum_r \left( a_{r,t} - n_{r,t} \right)^{+}}{B_t} \right] - \rho\, \frac{1}{T} \sum_t \left( D_{\text{fair},t} - \tau \right)_{+}^{2}, \qquad u(c) = \frac{c^{1-\eta} - 1}{1 - \eta},
+```
+
+where $`D_{\text{fair},t} = \max_r c_{r,t} - \min_r c_{r,t}`$. With inequality aversion $`\eta = 2`$, a gain in coverage counts more the lower a region's coverage already is. The sustainability term discourages support above need, which would fund extra consumption rather than protect households, while unmet need is the comfort cost that the welfare term minimises. The policy uses five public indicators per region: the share at risk of poverty, the share aged 65 or over, last month's heating or cooling need relative to normal, the energy price change over the last three months, and the region's past tendency to need more than forecast.
+
+**4. Validation on the crisis year, stress tests and explanations.** The guaranteed minimum $`\phi`$ is chosen on the 2022 energy crisis as the setting with the highest coverage of the worst-off tenth of regions, among settings that do not lower total coverage relative to forecast-proportional sharing. Every rule is then stress-tested on the test seasons, and every allocation is accompanied by a statement that decomposes it into the guaranteed part, the forecast part and the effect of each indicator.
+
+## Data
+
+All data are open and downloaded from the Eurostat API when the workflow runs, then cached for a month.
+
+| Quantity | Eurostat dataset | Level |
+|---|---|---|
+| Heating and cooling degree days, monthly | `nrg_chddr2_m` (NUTS 3 average used where a NUTS 2 series is missing) | NUTS 2 |
+| Population on 1 January | `demo_r_d2jan` | NUTS 2 |
+| Share aged 65 or over | `demo_r_pjanind2` | NUTS 2 |
+| At-risk-of-poverty rate | `ilc_li41` (national `ilc_li02` where no regional value exists) | NUTS 2 |
+| Price index of electricity, gas and other fuels (CP045, 2015 = 100) | `prc_hicp_midx` | Country |
+
+The real-data configuration covers the NUTS 2 regions of Greece, Bulgaria, Spain, Portugal and Italy, excluding the outermost regions. Training uses the seasons 2015 to 2021, validation 2022 and testing 2023 to 2025. Winter runs from November to March and summer from June to September. Annual indicators enter with a one-year lag, as they would be available to a ministry at the time. For each country the chain uses the NUTS version, 2021 or 2024, with the most complete series and records the choice.
+
+## Outputs
+
+Each run writes an Excel report with the sheets Summary, Strategies, Compared with other rules, Selection on validation, Stress tests, Allocation statements, Policy weights, Regional coverage, Guarantee, Training history, Data coverage and Data sources. Coverage measures are reported with 95% confidence intervals from a bootstrap over regions.
+
+## Running it on GitHub
+
+Nothing needs to be run locally.
+
+- **CI** runs the test suite on Python 3.10 to 3.13 on every push and pull request, including a test of the full real-data path against a simulated Eurostat API.
+- **Energy support run** runs on every push to `main`, every Monday at 04:41 UTC and on demand (Actions → Energy support run → Run workflow). It runs the synthetic demonstration and the real-data configuration, writes the main tables to the run summary and uploads both reports as the `energy-support-reports` artifact.
+
+## Results on synthetic data
+
+The synthetic configuration has 40 regions in four countries, weather anomalies that persist from month to month, a warming trend in summer and an energy price shock in 2022. With a budget of 60% of forecast need, the chain selected a guaranteed minimum of 30% of each region's need. On the five test seasons:
+
+| Rule | Share of vulnerable need covered | Coverage of the worst-off tenth of regions | Gap between 90th and 10th percentile | Support above need |
+|---|---|---|---|---|
+| Equal amount per resident | 0.609 | 0.328 | 0.589 | 3.1% |
+| Equal amount per resident at risk of poverty | 0.616 | 0.364 | 0.550 | 2.0% |
+| Proportional to last year's need | 0.619 | 0.385 | 0.371 | 1.4% |
+| Proportional to forecast need | 0.623 | 0.448 | 0.287 | 0.9% |
+| **FCRL-energy** | **0.626** | **0.517** | **0.146** | **0.3%** |
+| Hindsight benchmark (not implementable) | 0.628 | 0.592 | 0.003 | 0.0% |
+
+Against an equal amount per resident at risk of poverty, FCRL-energy raised the coverage of the worst-off tenth of regions by 0.154 (95% CI 0.121 to 0.170) and narrowed the gap between regions by 0.405 (95% CI 0.321 to 0.442), with no loss in total coverage (+0.011, 95% CI −0.007 to 0.027). Against forecast-proportional sharing, the gain for the worst-off was 0.069 (95% CI 0.060 to 0.075), about half of the distance to the hindsight benchmark. The guarantee was missed in 9.2% of test region-months against a target of 10%. Under a 30% price rise combined with a 20% budget cut, the guarantee still held in 79.3% of region-months, against 75.2% under the equal amount per resident at risk of poverty.
+
+When the budget is smaller than need, total coverage changes only through support paid above need. Fairer sharing therefore costs almost nothing in total coverage, which the results confirm: the gains for the worst-off came without any measurable loss in total coverage.
+
+## Findings on real data
+
+Results on the Eurostat data are produced by the GitHub workflow and will be reported here once reviewed.
+
+## Limitations
+
+- Need is estimated from degree days, prices and the number of residents at risk of poverty. It is an index of the energy cost of keeping a home warm or cool, not a measured household expenditure, and it does not capture differences in housing quality or heating systems within a region.
+- The price index is national, so regional differences in tariffs are not captured.
+- The at-risk-of-poverty rate measures low income relative to each country's median and is published with a lag; national values are used where regional values are missing.
+- The guarantee holds on average over time at the chosen miss rate; a single month can miss it, particularly at the start of an unexpected shock, before the adaptive bound has caught up.
+- The privacy-preserving federated layer of FCRL-MARL is not needed here because all inputs are public regional aggregates; it becomes relevant when household-level data are used.
+- The chain supports, and does not replace, the decisions of public authorities.
+
+## Data attribution
+
+Degree days, population, poverty and price data: © European Union, Eurostat; reuse is authorised provided the source is acknowledged (Commission Decision 2011/833/EU). Monthly degree days are re-published by Eurostat from the Joint Research Centre's AGRI4CAST Resources Portal. Region label points: © EuroGeographics for the administrative boundaries, Eurostat GISCO.
+
+## References
+
+- Gibbs, I. and Candès, E. (2021). Adaptive conformal inference under distribution shift. *Advances in Neural Information Processing Systems 34*.
+- Eurostat (2026). 9.2% of EU population struggled to keep their home warm. News release, 2 February 2026.
+
+## Citation
+
+Please cite both the software and the book; GitHub's **Cite this repository** button reads `CITATION.cff`.
+
+> Sargiotis, D. (2026). *FCRL-energy: fair and sustainable allocation of energy support under price shocks* (Version 1.0.0) [Computer software]. https://github.com/uomoathens/fcrl-energy
+
+> Sargiotis, D. (2026). *AI with Integrity: Shaping Ethical, Transparent, and Equitable Urban Futures*. Springer Nature Switzerland. https://doi.org/10.1007/978-3-032-31133-7
+
+## Licence
+
+MIT. See `LICENSE`.

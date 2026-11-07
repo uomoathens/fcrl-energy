@@ -1,0 +1,46 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata below, together with the book whose frameworks it develops."
+title: "FCRL-energy: fair and sustainable allocation of energy support under price shocks"
+type: software
+version: "1.0.0"
+date-released: "2026-11-07"
+authors:
+  - family-names: Sargiotis
+    given-names: Dimitrios
+    affiliation: "School of Civil Engineering, National Technical University of Athens"
+    orcid: "https://orcid.org/0009-0006-3644-4561"
+repository-code: "https://github.com/uomoathens/fcrl-energy"
+abstract: >-
+  Runnable, tested decision system developed from the FCRL-MARL, SC-RL and
+  XRL-URM frameworks of AI with Integrity (Springer, 2026). It shares a fixed
+  energy support budget among regions before need is known, guarantees every
+  region a minimum share of its need through adaptive conformal inference that
+  stays valid after price shocks, shares the rest with a policy trained to
+  protect the worst-off regions first while avoiding support above need, and
+  explains every allocation in plain language. It is evaluated on synthetic
+  data and on Eurostat degree-day, poverty, population and energy price data
+  for the NUTS 2 regions of Greece, Bulgaria, Spain, Portugal and Italy, with
+  stress tests for price rises and budget cuts.
+keywords:
+  - energy poverty
+  - energy support
+  - fair allocation
+  - multi-agent reinforcement learning
+  - conformal prediction
+  - prioritarian welfare
+  - explainable AI
+  - sustainability
+  - Eurostat
+license: MIT
+references:
+  - type: book
+    title: "AI with Integrity: Shaping Ethical, Transparent, and Equitable Urban Futures"
+    authors:
+      - family-names: Sargiotis
+        given-names: Dimitrios
+        orcid: "https://orcid.org/0009-0006-3644-4561"
+    publisher:
+      name: "Springer Nature Switzerland"
+    year: 2026
+    doi: "10.1007/978-3-032-31133-7"
+    isbn: "978-3-032-31133-7"

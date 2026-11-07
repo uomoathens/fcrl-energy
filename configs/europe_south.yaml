@@ -1,0 +1,71 @@
+data:
+  source: eurostat
+  countries:
+  - EL
+  - BG
+  - ES
+  - PT
+  - IT
+  exclude_regions:
+  - ES63
+  - ES64
+  - ES70
+  - PT20
+  - PT30
+  nuts_versions:
+  - 2021
+  - 2024
+  since: 2014-01
+  program_start: 2015-06
+  program_end: 2025-03
+  cache: .cache/fcrl
+program:
+  winter_months:
+  - 11
+  - 12
+  - 1
+  - 2
+  - 3
+  summer_months:
+  - 6
+  - 7
+  - 8
+  - 9
+  cooling_weight: 1.0
+  base_need_degree_days: 10.0
+  budget_share: 0.6
+splits:
+  train_season_years:
+  - 2015
+  - 2016
+  - 2017
+  - 2018
+  - 2019
+  - 2020
+  - 2021
+  validation_season_years:
+  - 2022
+  test_season_years:
+  - 2023
+  - 2024
+  - 2025
+guarantee:
+  minimum_coverage_grid:
+  - 0.0
+  - 0.2
+  - 0.3
+  - 0.4
+  miss_rate: 0.1
+  adaptation_rate: 0.05
+  overall_tolerance: 0.01
+model:
+  inequality_aversion: 2.0
+  leakage_weight: 0.5
+  max_gap: 0.3
+  gap_penalty: 5.0
+  ridge: 0.01
+  learning_rate: 0.05
+  iterations: 250
+evaluation:
+  bootstrap_samples: 500
+  seed: 0
