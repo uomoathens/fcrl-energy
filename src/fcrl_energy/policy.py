@@ -117,3 +117,30 @@ def default_settings(model):
         "finite_difference": float(model.get("finite_difference", 1e-4)),
         "iterations": int(model.get("iterations", 250)),
     }
+
+
+def water_fill(allocation, need, group, groups, reserve):
+    topup = np.zeros_like(allocation)
+    unspent = np.zeros(groups)
+    for g in range(groups):
+        rows = np.flatnonzero(group == g)
+        if len(rows) == 0 or reserve[g] <= 0:
+            unspent[g] = max(reserve[g], 0.0)
+            continue
+        a = allocation[rows]
+        n = need[rows]
+        shortfall = np.maximum(n - a, 0.0).sum()
+        if shortfall <= reserve[g]:
+            topup[rows] = np.maximum(n - a, 0.0)
+            unspent[g] = reserve[g] - shortfall
+            continue
+        low, high = 0.0, 1.0
+        for _ in range(60):
+            level = (low + high) / 2
+            if np.maximum(level * n - a, 0.0).sum() > reserve[g]:
+                high = level
+            else:
+                low = level
+        topup[rows] = np.maximum(low * n - a, 0.0)
+        unspent[g] = reserve[g] - topup[rows].sum()
+    return topup, unspent

@@ -25,7 +25,7 @@ def main(argv=None):
             {
                 "report": str(report),
                 "regions": int(result.panel["region"].nunique()),
-                "guaranteed_minimum": result.selected["level"],
+                "plan": {season: {"guaranteed_minimum": value["level"], "emergency_reserve": value["reserve"]} for season, value in result.selected.items()},
                 "strategies": {
                     row["strategy"]: {"overall": row["overall_coverage"], "worst_off": row["worst_off_coverage"], "gap": row["coverage_gap"]}
                     for row in result.performance.to_dict("records")

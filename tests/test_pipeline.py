@@ -21,12 +21,14 @@ def test_pipeline_selects_on_validation_and_reports_all_rules():
     result = run(quick_config())
     performance = result.performance.set_index("strategy")
     assert {STANDARD, FORECAST, FCRL, HINDSIGHT} <= set(performance.index)
-    assert result.selection["selected"].sum() == 1
-    assert result.selected["level"] in set(result.selection["guaranteed_minimum"])
+    assert result.selection.groupby("season")["selected"].sum().eq(1).all()
+    for season, setting in result.selected.items():
+        assert setting["level"] in set(result.selection["guaranteed_minimum"])
+        assert setting["reserve"] in set(result.selection["emergency_reserve_share"])
     for name in performance.index:
         assert performance.loc[name, "overall_coverage"] <= performance.loc[HINDSIGHT, "overall_coverage"] + 1e-9
     assert performance.loc[FCRL, "worst_off_coverage"] > performance.loc[STANDARD, "worst_off_coverage"]
-    assert len(result.statements) == result.panel["region"].nunique()
+    assert len(result.statements) == 2 * result.panel["region"].nunique()
     assert result.statements["statement"].str.len().min() > 100
     assert set(result.stress["scenario"]) >= {"as observed", "20% cut in the support budget"}
 
@@ -45,6 +47,6 @@ def test_cli_writes_report(tmp_path):
     summary = tmp_path / "summary.md"
     assert main(["run", "--config", str(path), "--output", str(tmp_path / "out"), "--summary", str(summary)]) == 0
     sheets = pd.read_excel(tmp_path / "out" / "energy_support_report.xlsx", sheet_name=None)
-    assert {"Summary", "Strategies", "Allocation statements", "Stress tests", "Guarantee", "Data sources"} <= set(sheets)
+    assert {"Summary", "Strategies", "Allocation statements", "Stress tests", "Guarantee", "Emergency reserve", "Data sources"} <= set(sheets)
     assert "FCRL-energy" in summary.read_text(encoding="utf-8")
     assert np.isfinite(sheets["Strategies"]["overall_coverage"]).all()

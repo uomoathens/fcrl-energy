@@ -45,12 +45,20 @@ splits:
 guarantee:
   minimum_coverage_grid:
   - 0.0
+  - 0.1
   - 0.2
   - 0.3
   - 0.4
+  reserve_grid:
+  - 0.0
+  - 0.025
+  - 0.05
+  - 0.075
+  - 0.1
   miss_rate: 0.1
   adaptation_rate: 0.05
   overall_tolerance: 0.01
+  worst_off_tolerance: 0.01
 model:
   inequality_aversion: 2.0
   leakage_weight: 0.5

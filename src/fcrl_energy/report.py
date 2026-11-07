@@ -30,12 +30,11 @@ def _row(result, name):
 def summary_rows(result):
     config = result.config
     panel = result.panel
-    selected = result.selected
+    plan = result.selected
     notes = result.notes
     standard = _row(result, STANDARD)
     forecast = _row(result, FORECAST)
     fcrl = _row(result, FCRL)
-    differences = result.differences
     rows = [
         ("Data source", config["data"]["source"]),
         ("Regions", int(panel["region"].nunique())),
@@ -43,16 +42,24 @@ def summary_rows(result):
         ("Test seasons", ", ".join(sorted(panel.loc[panel["split"] == "test", "season_label"].unique()))),
         ("Support budget", f"{notes['budget_share']:.0%} of the forecast energy need of residents at risk of poverty, set before each month"),
         ("Need definition", "residents at risk of poverty x (heating degree days in winter, cooling degree days in summer, plus a base need) x energy price index"),
-        ("Guaranteed minimum (selected on validation)", f"{selected['level']:.0%} of each region's need, protected against forecast error with a target miss rate of {notes['miss_rate']:.0%}"),
-        ("Selection rule", selected["reason"]),
-        ("Guarantee miss rate on validation", _fmt(notes["validation_miss_rate"])),
-        ("Guarantee miss rate on test", _fmt(notes["guarantee_test_miss_rate"])),
+    ]
+    for season in ("winter", "summer"):
+        if season in plan:
+            rows.append((f"Guaranteed minimum, {season} (selected on validation)", f"{plan[season]['level']:.0%} of each region's need, protected against forecast error with a target miss rate of {notes['miss_rate']:.0%}"))
+            rows.append((f"Emergency reserve, {season} (selected on validation)", f"{plan[season]['reserve']:.0%} of the budget, paid after the month to the regions with the lowest coverage"))
+    reason = next((plan[s]["reason"] for s in ("winter", "summer") if s in plan), "")
+    rows += [
+        ("Selection rule", reason),
+        ("Forecast bound miss rate on validation", _fmt(notes["validation_miss_rate"])),
+        ("Forecast bound miss rate on test", _fmt(notes["guarantee_test_miss_rate"])),
+        ("Guarantee attainment on test, FCRL-energy", _fmt(fcrl["guarantee_attainment"])),
     ]
     for label, row in ((STANDARD, standard), (FORECAST, forecast), (FCRL, fcrl)):
         rows.append((f"Worst-off coverage, {label}", _ci(row, "worst_off_coverage")))
         rows.append((f"Overall coverage, {label}", _ci(row, "overall_coverage")))
         rows.append((f"Coverage gap, {label}", _ci(row, "coverage_gap")))
-    for comparison, block in differences.groupby("comparison", sort=False):
+        rows.append((f"Lowest coverage, {label}", _fmt(row["lowest_coverage"])))
+    for comparison, block in result.differences.groupby("comparison", sort=False):
         for metric in ("worst_off_coverage", "overall_coverage", "coverage_gap", "leakage_share"):
             row = block[block["metric"] == metric].iloc[0]
             rows.append((f"{m.LABELS[metric].capitalize()}: {comparison}", f"{_fmt(row['difference'])} (95% CI {_fmt(row['ci_low'])} to {_fmt(row['ci_high'])})"))
@@ -79,6 +86,7 @@ def write_excel(result, path):
         "Strategies": result.performance,
         "Compared with other rules": result.differences,
         "Selection on validation": result.selection,
+        "Emergency reserve": result.reserve,
         "Stress tests": result.stress,
         "Allocation statements": result.statements,
         "Policy weights": result.weights,
@@ -97,21 +105,24 @@ def write_excel(result, path):
 
 def markdown(result, config_name):
     lines = [f"## FCRL-energy: `{config_name}`", ""]
-    selected = result.selected
+    plan = result.selected
     notes = result.notes
-    lines.append(f"Guaranteed minimum selected on validation: **{selected['level']:.0%}** of each region's need; {selected['reason']}.")
-    lines.append(f"Guarantee miss rate: validation {_fmt(notes['validation_miss_rate'])}, test {_fmt(notes['guarantee_test_miss_rate'])} (target {notes['miss_rate']:.2f}).")
+    for season in ("winter", "summer"):
+        if season in plan:
+            lines.append(f"{season.capitalize()}: guaranteed minimum **{plan[season]['level']:.0%}** of need, emergency reserve **{plan[season]['reserve']:.0%}** of the budget.")
     lines.append("")
-    lines.append("| Strategy | Overall coverage | Worst-off coverage | Coverage gap | Leakage |")
-    lines.append("|---|---|---|---|---|")
+    lines.append(f"Forecast bound miss rate: validation {_fmt(notes['validation_miss_rate'])}, test {_fmt(notes['guarantee_test_miss_rate'])} (target {notes['miss_rate']:.2f}).")
+    lines.append("")
+    lines.append("| Strategy | Overall coverage | Worst-off coverage | Lowest coverage | Coverage gap | Leakage |")
+    lines.append("|---|---|---|---|---|---|")
     for row in result.performance.to_dict("records"):
         lines.append(
-            f"| {row['strategy']} | {_fmt(row['overall_coverage'])} | {_fmt(row['worst_off_coverage'])} ({_fmt(row['worst_off_coverage_ci_low'])} to {_fmt(row['worst_off_coverage_ci_high'])}) | {_fmt(row['coverage_gap'])} | {_fmt(row['leakage_share'])} |"
+            f"| {row['strategy']} | {_fmt(row['overall_coverage'])} | {_fmt(row['worst_off_coverage'])} ({_fmt(row['worst_off_coverage_ci_low'])} to {_fmt(row['worst_off_coverage_ci_high'])}) | {_fmt(row['lowest_coverage'])} | {_fmt(row['coverage_gap'])} | {_fmt(row['leakage_share'])} |"
         )
     lines.append("")
-    lines.append("| Stress test | Strategy | Overall coverage | Worst-off coverage | Guarantee attainment |")
-    lines.append("|---|---|---|---|---|")
+    lines.append("| Stress test | Strategy | Overall coverage | Worst-off coverage | Lowest coverage | Guarantee attainment |")
+    lines.append("|---|---|---|---|---|---|")
     for row in result.stress.to_dict("records"):
-        lines.append(f"| {row['scenario']} | {row['strategy']} | {_fmt(row['overall_coverage'])} | {_fmt(row['worst_off_coverage'])} | {_fmt(row['guarantee_attainment'])} |")
+        lines.append(f"| {row['scenario']} | {row['strategy']} | {_fmt(row['overall_coverage'])} | {_fmt(row['worst_off_coverage'])} | {_fmt(row['lowest_coverage'])} | {_fmt(row['guarantee_attainment'])} |")
     lines.append("")
     return "\n".join(lines) + "\n"

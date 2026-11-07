@@ -7,7 +7,7 @@ import yaml
 from fcrl_energy.guarantee import adaptive_quantiles, conformal_quantile
 from fcrl_energy.metrics import summarise, weighted_gini
 from fcrl_energy.panel import build_panel
-from fcrl_energy.policy import allocate, default_settings, make_block, objective
+from fcrl_energy.policy import allocate, default_settings, make_block, objective, water_fill
 from fcrl_energy.synthetic import generate
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -101,3 +101,31 @@ def test_metrics_on_known_values():
     assert np.isclose(summary["worst_off_coverage"], 0.5)
     assert np.isclose(summary["guarantee_attainment"], 1.0)
     assert np.isclose(weighted_gini([1, 1, 1], [1, 2, 3]), 0.0)
+
+
+def test_reserve_raises_the_lowest_coverage_first():
+    allocation = np.array([1.0, 5.0, 2.0])
+    need = np.array([10.0, 10.0, 4.0])
+    group = np.zeros(3, dtype=int)
+    top_up, unspent = water_fill(allocation, need, group, 1, np.array([4.0]))
+    assert np.allclose(top_up, [4.0, 0.0, 0.0])
+    assert np.allclose(unspent, [0.0])
+    top_up, unspent = water_fill(allocation, need, group, 1, np.array([100.0]))
+    assert np.allclose(allocation + top_up, need)
+    assert np.allclose(unspent, [84.0])
+
+
+def test_reserve_never_lowers_any_region():
+    frame, cfg = panel()
+    from fcrl_energy.guarantee import adaptive_quantiles
+    from fcrl_energy.pipeline import fcrl_allocation
+    q, _ = adaptive_quantiles(frame, frame["need"], 0.1, 0.05)
+    part = frame[frame["split"] == "test"]
+    budget = (frame.groupby("ordinal")["forecast"].sum() * 0.6).to_dict()
+    theta = np.zeros(5)
+    plan = {s: {"theta": theta, "level": 0.2, "reserve": 0.1} for s in ("winter", "summer")}
+    parts, _ = fcrl_allocation(part, budget, q, plan)
+    spent = parts["final"].groupby(part["ordinal"]).sum()
+    assert (spent <= part.groupby("ordinal")["ordinal"].first().map(budget) * (1 + 1e-9)).all()
+    assert (parts["top_up"] >= -1e-12).all()
+    assert (parts["final"] >= parts["floor"] - 1e-9).all()

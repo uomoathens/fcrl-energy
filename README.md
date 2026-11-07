@@ -16,6 +16,7 @@ into a runnable decision system for one of the most pressing problems in Europea
 | Fairness-Constrained Multi-Agent Reinforcement Learning for Urban Resource Allocation (FCRL-MARL) | Fairness-constrained allocation; every region acts as an agent with a shared policy competing for one budget | `policy.py`, `pipeline.py` |
 | Sustainability-Constrained Reinforcement Learning (SC-RL) | Penalty on support beyond need, with unmet need treated as the human comfort cost | `policy.py` |
 | Explainable Reinforcement Learning for Urban Resource Management (XRL-URM) | Plain-language statement for every regional allocation | `pipeline.py` |
+| Accountability-Constrained Reinforcement Learning (AC-RL), fairness-constrained redress | Emergency reserve paid after the month to the regions left with the lowest coverage | `policy.py`, `pipeline.py` |
 
 The book sets out the architecture and its mathematical core: resource allocation subject to a fairness disparity constraint $`D_{\text{fair}}(f_w(X),S) \le \tau`$, a multi-agent value function that balances each agent's reward against environmental impact,
 
@@ -23,7 +24,7 @@ The book sets out the architecture and its mathematical core: resource allocatio
 V_{\text{MARL}}(s_t,a_t) = \sum_{k=1}^{K} \mathbb{E}\left[ R_k(s_t,a_t) - \lambda E_k(s_t,a_t) \right],
 ```
 
-a sustainability-adjusted value that weighs efficiency against human comfort, and an explainability layer that makes each decision traceable. Building on that foundation, this repository applies the frameworks to energy support under price shocks and extends them in four operational directions, described below.
+a sustainability-adjusted value that weighs efficiency against human comfort, an explainability layer that makes each decision traceable, and redress mechanisms that correct adverse outcomes. Building on that foundation, this repository applies the frameworks to energy support under price shocks and extends them in five operational directions, described below.
 
 ## Why it matters
 
@@ -36,11 +37,12 @@ Governments answer with heating and cooling allowances, but the budget is fixed 
 1. **Measures need.** For every region and month, the energy need of residents at risk of poverty is estimated from heating degree days in winter, cooling degree days in summer and the national energy price index.
 2. **Allocates before the month begins.** The budget is set and shared using only information available at the end of the previous month: normal weather for the season, last month's conditions and the latest prices.
 3. **Guarantees a minimum.** Every region receives a guaranteed share of its need, sized so that forecast errors break the guarantee only at a chosen low rate, and the size of the guarantee adapts automatically after price shocks.
-4. **Shares the rest fairly.** A policy shared by all regions shares the remaining budget, trained to maximise the welfare of the worst covered first, to keep the gap between regions within a limit and to avoid paying above need.
-5. **Selects its settings on a crisis year.** The guaranteed minimum is chosen on 2022, the year of the energy crisis, and only if it does not lower total coverage.
-6. **Compares with the rules in use.** The same budget is shared by an equal amount per resident, an equal amount per resident at risk of poverty, last year's need and forecast need, alongside a hindsight benchmark that knows the future.
-7. **Tests resilience.** Every rule is re-run under an unexpected 30% rise in energy prices, a 20% cut in the budget and both together.
-8. **Explains every allocation.** Each region receives a statement in plain language: how much it received, how much came from the guarantee, what raised or lowered its share and how much of its need was covered.
+4. **Shares the rest fairly.** A policy shared by all regions shares the remaining budget, trained separately for winter and summer to maximise the welfare of the worst covered first, to keep the gap between regions within a limit and to avoid paying above need.
+5. **Keeps an emergency reserve.** A small part of the budget, at most 10%, is held back and paid at the end of the month, raising the regions left with the lowest coverage first, so that a cold spell or heatwave that no forecast foresaw does not leave a region behind.
+6. **Selects its settings on a crisis year.** The reserve and the guaranteed minimum are chosen separately for winter and summer on 2022, the year of the energy crisis, and only if they lower neither total coverage nor the coverage of the worst-off regions.
+7. **Compares with the rules in use.** The same budget is shared by an equal amount per resident, an equal amount per resident at risk of poverty, last year's need and forecast need, alongside a hindsight benchmark that knows the future.
+8. **Tests resilience.** Every rule is re-run under an unexpected 30% rise in energy prices, a 20% cut in the budget and both together.
+9. **Explains every allocation.** Each region receives a statement in plain language: how much it received, how much came from the guarantee and from the reserve, what raised or lowered its share and how much of its need was covered.
 
 ## Operational extensions
 
@@ -76,7 +78,15 @@ so that the long-run share of region-months in which the guarantee is missed ten
 
 where $`D_{\text{fair},t} = \max_r c_{r,t} - \min_r c_{r,t}`$. With inequality aversion $`\eta = 2`$, a gain in coverage counts more the lower a region's coverage already is. The sustainability term discourages support above need, which would fund extra consumption rather than protect households, while unmet need is the comfort cost that the welfare term minimises. The policy uses five public indicators per region: the share at risk of poverty, the share aged 65 or over, last month's heating or cooling need relative to normal, the energy price change over the last three months, and the region's past tendency to need more than forecast.
 
-**4. Validation on the crisis year, stress tests and explanations.** The guaranteed minimum $`\phi`$ is chosen on the 2022 energy crisis as the setting with the highest coverage of the worst-off tenth of regions, among settings that do not lower total coverage relative to forecast-proportional sharing. Every rule is then stress-tested on the test seasons, and every allocation is accompanied by a statement that decomposes it into the guaranteed part, the forecast part and the effect of each indicator.
+**4. An emergency reserve that redresses the largest shortfalls first.** A share $`\rho`$ of each month's budget is held back. Once the month's degree days and prices are known, it is paid to the regions with the lowest coverage, raising them to a common level $`L_t`$:
+
+```math
+a^{\text{final}}_{r,t} = a_{r,t} + \left( L_t\, n_{r,t} - a_{r,t} \right)^{+}, \qquad \sum_r \left( L_t\, n_{r,t} - a_{r,t} \right)^{+} = \rho B_t, \quad L_t \le 1.
+```
+
+This is a water-filling rule: no region is topped up before every region below it has been raised to the same coverage, so the reserve gives priority to the worst-off in the strict sense of the maximin principle. Any part of the reserve not needed to cover need in full is returned unspent. The reserve is the operational form of the fairness-constrained redress mechanism of the accountability framework: when an allocation decided in advance proves inadequate, the shortfall is corrected, and the correction is recorded.
+
+**5. Validation on the crisis year, stress tests and explanations.** For each season, the reserve is chosen on the 2022 energy crisis as the share that maximises the coverage of the worst-off tenth of regions without lowering total coverage relative to forecast-proportional sharing. The guaranteed minimum $`\phi`$ is then the largest that the budget could afford in every month and that keeps both total coverage and worst-off coverage within one percentage point. Every rule is stress-tested on the test seasons, and every allocation is accompanied by a statement that decomposes it into the guaranteed part, the reserve, the forecast part and the effect of each indicator.
 
 ## Data
 
@@ -94,7 +104,7 @@ The real-data configuration covers the NUTS 2 regions of Greece, Bulgaria, Spain
 
 ## Outputs
 
-Each run writes an Excel report with the sheets Summary, Strategies, Compared with other rules, Selection on validation, Stress tests, Allocation statements, Policy weights, Regional coverage, Guarantee, Training history, Data coverage and Data sources. Coverage measures are reported with 95% confidence intervals from a bootstrap over regions.
+Each run writes an Excel report with the sheets Summary, Strategies, Compared with other rules, Selection on validation, Emergency reserve, Stress tests, Allocation statements, Policy weights, Regional coverage, Guarantee, Training history, Data coverage and Data sources. Coverage measures are reported with 95% confidence intervals from a bootstrap over regions.
 
 ## Running it on GitHub
 
@@ -105,24 +115,30 @@ Nothing needs to be run locally.
 
 ## Results on synthetic data
 
-The synthetic configuration has 40 regions in four countries, weather anomalies that persist from month to month, a warming trend in summer and an energy price shock in 2022. With a budget of 60% of forecast need, the chain selected a guaranteed minimum of 30% of each region's need. On the five test seasons:
+The synthetic configuration has 40 regions in four countries, weather anomalies that persist from month to month, a warming trend in summer and an energy price shock in 2022. With a budget of 60% of forecast need, the chain selected a guaranteed minimum of 20% in winter and 30% in summer and an emergency reserve of 10% in both seasons. On the five test seasons:
 
-| Rule | Share of vulnerable need covered | Coverage of the worst-off tenth of regions | Gap between 90th and 10th percentile | Support above need |
-|---|---|---|---|---|
-| Equal amount per resident | 0.609 | 0.328 | 0.589 | 3.1% |
-| Equal amount per resident at risk of poverty | 0.616 | 0.364 | 0.550 | 2.0% |
-| Proportional to last year's need | 0.619 | 0.385 | 0.371 | 1.4% |
-| Proportional to forecast need | 0.623 | 0.448 | 0.287 | 0.9% |
-| **FCRL-energy** | **0.626** | **0.517** | **0.146** | **0.3%** |
-| Hindsight benchmark (not implementable) | 0.628 | 0.592 | 0.003 | 0.0% |
+| Rule | Share of vulnerable need covered | Coverage of the worst-off tenth of regions | Lowest regional coverage | Gap between 90th and 10th percentile | Support above need |
+|---|---|---|---|---|---|
+| Equal amount per resident | 0.609 | 0.328 | 0.220 | 0.589 | 3.1% |
+| Equal amount per resident at risk of poverty | 0.616 | 0.364 | 0.288 | 0.550 | 2.0% |
+| Proportional to last year's need | 0.619 | 0.385 | 0.299 | 0.371 | 1.4% |
+| Proportional to forecast need | 0.623 | 0.448 | 0.383 | 0.287 | 0.9% |
+| **FCRL-energy** | **0.628** | **0.557** | **0.487** | **0.107** | **0.1%** |
+| Hindsight benchmark (not implementable) | 0.628 | 0.592 | 0.526 | 0.003 | 0.0% |
 
-Against an equal amount per resident at risk of poverty, FCRL-energy raised the coverage of the worst-off tenth of regions by 0.154 (95% CI 0.121 to 0.170) and narrowed the gap between regions by 0.405 (95% CI 0.321 to 0.442), with no loss in total coverage (+0.011, 95% CI −0.007 to 0.027). Against forecast-proportional sharing, the gain for the worst-off was 0.069 (95% CI 0.060 to 0.075), about half of the distance to the hindsight benchmark. The guarantee was missed in 9.2% of test region-months against a target of 10%. Under a 30% price rise combined with a 20% budget cut, the guarantee still held in 79.3% of region-months, against 75.2% under the equal amount per resident at risk of poverty.
+Against an equal amount per resident at risk of poverty, FCRL-energy raised the coverage of the worst-off tenth of regions by 0.193 (95% CI 0.162 to 0.205) and narrowed the gap between regions by 0.443 (95% CI 0.348 to 0.479), with no loss in total coverage (+0.012, 95% CI −0.005 to 0.029). Against forecast-proportional sharing, the gain for the worst-off was 0.108 (95% CI 0.093 to 0.112), three quarters of the distance to the hindsight benchmark. The guaranteed minimum held in every test region-month, and under a 30% price rise combined with a 20% budget cut it held in 87.4% of region-months, against 81.4% under the equal amount per resident at risk of poverty.
 
 When the budget is smaller than need, total coverage changes only through support paid above need. Fairer sharing therefore costs almost nothing in total coverage, which the results confirm: the gains for the worst-off came without any measurable loss in total coverage.
 
 ## Findings on real data
 
-Results on the Eurostat data are produced by the GitHub workflow and will be reported here once reviewed.
+The first run on real data used an earlier version of the chain, with a single guaranteed minimum for both seasons and no reserve. All 63 NUTS 2 regions of Greece, Bulgaria, Spain, Portugal and Italy were retrieved with regional poverty rates and degree days; for Portugal, the NUTS 2024 regions were complete. The run produced three findings that shaped the present version:
+
+1. **Targeting by forecast need protects the worst-off far better than the rules in use.** On the test seasons 2023 to 2025, the earlier version raised the coverage of the worst-off tenth of regions from 0.322 under an equal amount per resident at risk of poverty to 0.481 (+0.159, 95% CI 0.124 to 0.184), narrowed the gap between regions by 0.495 and cut support paid above need from 5.0% to 0.3% of the budget, with no loss in total coverage. The equal amount per resident at risk of poverty covered the full need in some regions with mild climates and less than a quarter of it in others. Most of the gain came from sharing in proportion to forecast need; the learned policy added a smaller but consistent gain of 0.014 (95% CI 0.010 to 0.018).
+2. **Early-summer heatwaves are the main source of unprotected need.** Cooling need in June exceeded the bound derived from past forecast errors in 43% of regions in 2022, 35% in 2024 and 62% in 2025, while winter misses stayed mostly below 10%. The lowest regional coverage was 0.32 to 0.41 in summer against 0.57 to 0.63 in winter.
+3. **A guarantee sized for summer uncertainty consumes most of the budget.** The adaptive bound on need relative to forecast reached 1.6 to 2.0 in summer against about 1.2 in winter, so a meaningful summer guarantee left little budget for the policy, and the earlier selection rule, which looked only at average coverage of the worst-off, kept no guarantee at all. The present version therefore selects the guarantee separately for each season, as the largest that harms neither total nor worst-off coverage, and adds the emergency reserve for shortfalls that no forecast can foresee.
+
+Results of the present version on real data will be reported here once reviewed.
 
 ## Limitations
 
@@ -130,6 +146,7 @@ Results on the Eurostat data are produced by the GitHub workflow and will be rep
 - The price index is national, so regional differences in tariffs are not captured.
 - The at-risk-of-poverty rate measures low income relative to each country's median and is published with a lag; national values are used where regional values are missing.
 - The guarantee holds on average over time at the chosen miss rate; a single month can miss it, particularly at the start of an unexpected shock, before the adaptive bound has caught up.
+- The emergency reserve is paid after the month, once degree days and prices are known, so it reaches households later than the advance payment. The reserve is capped at 10% of the budget so that at least 90% of the support is paid in advance; the cap is a policy choice in the configuration.
 - The privacy-preserving federated layer of FCRL-MARL is not needed here because all inputs are public regional aggregates; it becomes relevant when household-level data are used.
 - The chain supports, and does not replace, the decisions of public authorities.
 

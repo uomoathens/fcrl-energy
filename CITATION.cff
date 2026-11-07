@@ -16,8 +16,9 @@ abstract: >-
   energy support budget among regions before need is known, guarantees every
   region a minimum share of its need through adaptive conformal inference that
   stays valid after price shocks, shares the rest with a policy trained to
-  protect the worst-off regions first while avoiding support above need, and
-  explains every allocation in plain language. It is evaluated on synthetic
+  protect the worst-off regions first while avoiding support above need, keeps
+  a small emergency reserve that is paid after the month to the regions left
+  with the lowest coverage, and explains every allocation in plain language. It is evaluated on synthetic
   data and on Eurostat degree-day, poverty, population and energy price data
   for the NUTS 2 regions of Greece, Bulgaria, Spain, Portugal and Italy, with
   stress tests for price rises and budget cuts.
