@@ -26,7 +26,7 @@ def main(argv=None):
     report = write_excel(result, output / "energy_support_report.xlsx")
     images = write_all(result.performance, result.regional, result.stress, output / "figures")
     add_charts(report, images)
-    write_dashboard(output / "dashboard.html", payload(result.performance, result.regional, result.stress, result.statements, meta_from_result(result)))
+    write_dashboard(output / "dashboard.html", payload(result.performance, result.detail, result.stress_detail, result.statements, meta_from_result(result)))
     print(
         json.dumps(
             {

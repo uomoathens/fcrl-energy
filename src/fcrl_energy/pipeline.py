@@ -44,6 +44,8 @@ class RunResult:
     history: pd.DataFrame
     coverage: pd.DataFrame
     reserve: pd.DataFrame
+    detail: pd.DataFrame = None
+    stress_detail: pd.DataFrame = None
     notes: dict = field(default_factory=dict)
 
 
@@ -208,6 +210,18 @@ def _performance(frame, allocations, level, samples, seed):
     return pd.DataFrame(rows), pd.DataFrame(differences)
 
 
+def _detail(frame, allocations, plan, keys):
+    level = frame["season"].map({s: plan[s]["level"] for s in plan})
+    rows = []
+    for key in keys:
+        covered = np.minimum(allocations[key], frame["need"])
+        met = ((covered / frame["need"]) >= level - 1e-9) & (level > 0)
+        block = pd.DataFrame({"region": frame["region"], "name": frame["name"], "country": frame["country"], "season_label": frame["season_label"], "need": frame["need"], "covered": covered, "met": met.astype(float), "months": (level > 0).astype(float)})
+        grouped = block.groupby(["region", "name", "country", "season_label"], as_index=False)[["need", "covered", "met", "months"]].sum()
+        rows.append(grouped.assign(key=key))
+    return pd.concat(rows, ignore_index=True)
+
+
 def _guarantee_level(plan):
     levels = [plan[s]["level"] for s in SEASONS if s in plan]
     return min(levels) if levels else 0.0
@@ -222,6 +236,7 @@ def _attainment(frame, allocation, plan):
 
 def _stress(panel, budget, plan, delta, gamma, scenarios):
     rows = []
+    details = []
     test_index = panel.index[panel["split"] == "test"]
     test_ordinals = set(panel.loc[test_index, "ordinal"])
     for scenario in scenarios:
@@ -232,11 +247,12 @@ def _stress(panel, budget, plan, delta, gamma, scenarios):
         frame = shocked.loc[test_index]
         allocations, _, _ = _allocations(shocked, frame, shocked_budget, q, plan)
         data = frame.join(allocations)
+        details.append(_detail(frame, allocations, plan, ("a_per_poor_resident", "a_forecast", "a_fcrl")).assign(scenario=scenario["name"]))
         for key in ("a_per_poor_resident", "a_forecast", "a_fcrl"):
             summary = m.summarise(data, key, 0.0)
             summary["guarantee_attainment"] = _attainment(frame, data[key], plan)
             rows.append({"scenario": scenario["name"], "strategy": NAMES[key], **summary})
-    return pd.DataFrame(rows)
+    return pd.DataFrame(rows), pd.concat(details, ignore_index=True)
 
 
 def _weights(thetas):
@@ -362,7 +378,7 @@ def run(config):
         {"name": "20% cut in the support budget", "price_shock": 0.0, "budget_cut": 0.2},
         {"name": "price rise and budget cut together", "price_shock": 0.3, "budget_cut": 0.2},
     ])
-    stress = _stress(panel, budget, plan, delta, gamma, scenarios)
+    stress, stress_detail = _stress(panel, budget, plan, delta, gamma, scenarios)
     test_path = path[path["split"] == "test"]
     notes = {
         "budget_share": float(program["budget_share"]),
@@ -388,5 +404,7 @@ def run(config):
         history=history,
         coverage=coverage_table(panel),
         reserve=_reserve_table(test, parts, unspent, budget, plan),
+        detail=_detail(test, allocations, plan, [key for key, _ in STRATEGIES]),
+        stress_detail=stress_detail,
         notes=notes,
     )

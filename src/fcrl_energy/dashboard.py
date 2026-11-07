@@ -6,15 +6,9 @@ import numpy as np
 from .pipeline import FCRL, FORECAST, HINDSIGHT, STANDARD
 
 COUNTRIES = {"EL": "Greece", "BG": "Bulgaria", "ES": "Spain", "PT": "Portugal", "IT": "Italy", "CY": "Cyprus"}
-SHORT = {
-    "equal amount per resident": "Equal amount per resident",
-    STANDARD: "Equal amount per resident at risk of poverty",
-    "proportional to last year's need": "Proportional to last year's need",
-    FORECAST: "Proportional to forecast need",
-    FCRL: "FCRL-energy",
-    HINDSIGHT: "Hindsight benchmark (not implementable)",
-}
-KEYS = {STANDARD: "std", FORECAST: "fc", FCRL: "fcrl", HINDSIGHT: "hind"}
+KEYS = {"a_per_resident": "pr", "a_per_poor_resident": "std", "a_last_year": "ly", "a_forecast": "fc", "a_fcrl": "fcrl", "a_hindsight": "hind"}
+LABELS = {"pr": "Equal amount per resident", "std": "Equal amount per resident at risk of poverty", "ly": "Proportional to last year's need", "fc": "Proportional to forecast need", "fcrl": "FCRL-energy", "hind": "Hindsight benchmark (not implementable)"}
+STRATEGY_KEYS = {"equal amount per resident": "pr", STANDARD: "std", "proportional to last year's need": "ly", FORECAST: "fc", FCRL: "fcrl", HINDSIGHT: "hind"}
 
 
 def _num(value):
@@ -22,57 +16,41 @@ def _num(value):
     return None if np.isnan(value) or np.isinf(value) else round(value, 5)
 
 
-def payload(performance, regional, stress, statements, meta):
-    perf = []
+def _cells(detail, extra=()):
+    out = []
+    keys = ["region", "season_label", *extra]
+    for group, block in detail.groupby(keys, sort=True):
+        first = block.iloc[0]
+        need = float(first["need"])
+        record = {"r": first["region"], "n": first["name"], "c": first["country"], "s": first["season_label"], "need": _num(need), "months": _num(first["months"]), "v": {}, "met": {}}
+        for row in block.itertuples():
+            key = KEYS[row.key]
+            record["v"][key] = _num(row.covered / need) if need > 0 else None
+            record["met"][key] = _num(row.met)
+        if extra:
+            record["sc"] = first["scenario"]
+        out.append(record)
+    return out
+
+
+def payload(performance, detail, stress_detail, statements, meta):
+    perf = {}
     for row in performance.to_dict("records"):
-        perf.append(
-            {
-                "key": row["strategy"],
-                "label": SHORT.get(row["strategy"], row["strategy"]),
-                "worst": _num(row["worst_off_coverage"]),
-                "lo": _num(row["worst_off_coverage_ci_low"]),
-                "hi": _num(row["worst_off_coverage_ci_high"]),
-                "overall": _num(row["overall_coverage"]),
-                "lowest": _num(row["lowest_coverage"]),
-                "gap": _num(row["coverage_gap"]),
-                "leak": _num(row["leakage_share"]),
-                "attain": _num(row["guarantee_attainment"]),
-            }
-        )
-    regions = []
-    for row in regional.to_dict("records"):
-        regions.append(
-            {
-                "r": row["region"],
-                "n": row["name"],
-                "c": row["country"],
-                "s": row["season_label"],
-                "v": {KEYS[name]: _num(row[name]) for name in KEYS if name in row},
-            }
-        )
-    shocks = []
-    for row in stress.to_dict("records"):
-        if row["strategy"] not in KEYS:
-            continue
-        shocks.append(
-            {
-                "scenario": row["scenario"],
-                "k": KEYS[row["strategy"]],
-                "lowest": _num(row["lowest_coverage"]),
-                "worst": _num(row["worst_off_coverage"]),
-                "attain": _num(row["guarantee_attainment"]),
-                "overall": _num(row["overall_coverage"]),
-            }
-        )
+        key = STRATEGY_KEYS.get(row["strategy"])
+        if key:
+            perf[key] = {"lo": _num(row["worst_off_coverage_ci_low"]), "hi": _num(row["worst_off_coverage_ci_high"]), "leak": _num(row["leakage_share"])}
     notes = []
     for row in statements.to_dict("records"):
-        notes.append({"r": row["region"], "s": row["season"], "t": row["statement"], "share": _num(row["share_of_budget"]), "cov": _num(row["realised_coverage"]), "std": _num(row["realised_coverage_under_standard_rule"])})
+        notes.append({"r": row["region"], "s": row["season"], "t": row["statement"]})
+    regions = _cells(detail)
     countries = sorted({row["c"] for row in regions})
     return {
         "meta": meta,
-        "performance": perf,
+        "labels": LABELS,
+        "perf": perf,
         "regions": regions,
-        "stress": shocks,
+        "stress": _cells(stress_detail, ("scenario",)),
+        "scenarios": list(dict.fromkeys(stress_detail["scenario"])),
         "statements": notes,
         "countries": [{"code": code, "name": COUNTRIES.get(code, code)} for code in countries],
     }
@@ -231,13 +209,13 @@ footer a { color: inherit; }
   <div class="grid">
     <section class="card">
       <h2>The worst-off regions</h2>
-      <p class="sub">Need covered in the worst-covered tenth of regions, all countries. Lines show 95% intervals.</p>
+      <p class="sub" id="s-worst"></p>
       <div id="c-worst"></div>
       <details><summary>Show table</summary><div id="t-worst"></div></details>
     </section>
     <section class="card">
       <h2>Under price and budget shocks</h2>
-      <p class="sub">Same budget, three rules, all countries.</p>
+      <p class="sub" id="s-stress"></p>
       <div class="seg" id="seg-stress" role="group" aria-label="Measure" style="margin-bottom:12px"></div>
       <div class="legend" id="l-stress"></div>
       <div id="c-stress"></div>
@@ -245,7 +223,7 @@ footer a { color: inherit; }
     </section>
     <section class="card wide">
       <h2>Every region, every season</h2>
-      <p class="sub">One dot per region and test season. The black mark is the lowest coverage. Hover a dot to see the region; click to open it below.</p>
+      <p class="sub" id="s-strip"></p>
       <div id="c-strip"></div>
     </section>
     <section class="card wide">
@@ -274,7 +252,6 @@ const DATA = __DATA__;
 const NS = "http://www.w3.org/2000/svg";
 const KEYS = [["fcrl", "FCRL-energy"], ["std", "Equal amount per resident at risk of poverty"], ["fc", "Proportional to forecast need"]];
 const NAME = Object.fromEntries(KEYS);
-NAME.hind = "Hindsight benchmark";
 const pct = v => v == null ? "n/a" : Math.round(v * 100) + "%";
 const pct1 = v => v == null ? "n/a" : (v * 100).toFixed(1) + "%";
 const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -344,10 +321,25 @@ function legend(host, keys) {
   for (const k of keys) { const s = el("span", {}, host); const i = el("i", {}, s); i.style.background = css("--" + k); s.appendChild(document.createTextNode(NAME[k])); }
 }
 function regionsInScope() { return DATA.regions.filter(d => country === "all" || d.c === country); }
+function scopeName() { return country === "all" ? "all five countries" : (DATA.countries.find(c => c.code === country) || {name: country}).name; }
+function agg(rows, k) {
+  const seasons = {};
+  let need = 0, covered = 0, met = 0, months = 0, lowest = Infinity;
+  for (const d of rows) {
+    const v = d.v[k];
+    if (v == null) continue;
+    (seasons[d.s] = seasons[d.s] || []).push(v);
+    need += d.need; covered += v * d.need; met += d.met[k] || 0; months += d.months || 0;
+    lowest = Math.min(lowest, v);
+  }
+  const tails = Object.values(seasons).map(list => { list.sort((a, b) => a - b); const n = Math.max(1, Math.ceil(0.1 * list.length)); return list.slice(0, n).reduce((a, b) => a + b, 0) / n; });
+  return {worst: tails.length ? tails.reduce((a, b) => a + b, 0) / tails.length : null, lowest: isFinite(lowest) ? lowest : null, overall: need ? covered / need : null, attain: months ? met / months : null};
+}
+const ORDER = ["pr", "std", "ly", "fc", "fcrl", "hind"];
 
 function tiles() {
-  const f = DATA.performance.find(p => p.label === "FCRL-energy");
-  const s = DATA.performance.find(p => p.label === "Equal amount per resident at risk of poverty");
+  const rows = regionsInScope();
+  const f = agg(rows, "fcrl"), s = agg(rows, "std");
   const host = document.getElementById("tiles");
   host.replaceChildren();
   const items = [
@@ -358,24 +350,25 @@ function tiles() {
   ];
   for (const [label, value, delta] of items) {
     const t = el("div", {class: "tile"}, host);
-    el("p", {class: "label"}, t, label);
+    el("p", {class: "label"}, t, label + (country === "all" ? "" : ", " + scopeName()));
     el("p", {class: "value"}, t, value);
     const d = el("p", {class: "delta"}, t);
-    const parts = delta.split(/<b>|<\/b>/);
-    parts.forEach((p, i) => i % 2 ? el("b", {}, d, p) : d.appendChild(document.createTextNode(p)));
+    delta.split(/<b>|<\/b>/).forEach((p, i) => i % 2 ? el("b", {}, d, p) : d.appendChild(document.createTextNode(p)));
   }
   document.getElementById("lede").textContent = `A fixed energy allowance is shared among ${DATA.meta.regions} regions before each month begins, with a budget of ${pct(DATA.meta.budget)} of forecast need. FCRL-energy guarantees every region a minimum, shares the rest to protect the worst-off first, and keeps a ${pct(DATA.meta.plan.winter.reserve)} reserve for the regions left furthest behind. Test seasons: ${DATA.meta.seasons.join(", ")}.`;
 }
 
 function worst() {
-  const rows = DATA.performance;
+  const scoped = regionsInScope();
+  const rows = ORDER.map(k => ({k, label: DATA.labels[k], ...agg(scoped, k), ...(country === "all" && DATA.perf[k] ? {lo: DATA.perf[k].lo, hi: DATA.perf[k].hi} : {})}));
+  document.getElementById("s-worst").textContent = `Need covered in the worst-covered tenth of regions, ${scopeName()}.` + (country === "all" ? " Lines show 95% intervals." : "");
   const W = 520, rowH = 40, top = 6, left = 196, right = 50, H = top + rows.length * rowH + 26;
   const s = svg(document.getElementById("c-worst"), W, H);
-  const x = v => left + v * (W - left - right) / 0.8;
-  axis(s, x, top, H - 26, [0, 0.2, 0.4, 0.6, 0.8], pct);
+  const x = v => left + Math.min(v, 1) * (W - left - right);
+  axis(s, x, top, H - 26, [0, 0.25, 0.5, 0.75, 1], pct);
   rows.forEach((d, i) => {
     const y = top + i * rowH + rowH / 2;
-    const fc = d.label === "FCRL-energy";
+    const fc = d.k === "fcrl";
     const g = sv("g", {class: "mark"}, s);
     const lines = d.label.length > 30 ? [d.label.slice(0, d.label.lastIndexOf(" ", 30)), d.label.slice(d.label.lastIndexOf(" ", 30) + 1)] : [d.label];
     lines.forEach((t, j) => sv("text", {x: left - 10, y: y + 4 + (j - (lines.length - 1) / 2) * 14, "text-anchor": "end", class: fc ? "lab" : "lab-2", "font-weight": fc ? 600 : 400}, g, t));
@@ -384,9 +377,12 @@ function worst() {
     if (d.lo != null) sv("line", {x1: x(d.lo), x2: x(d.hi), y1: y, y2: y, stroke: css("--text-secondary"), "stroke-width": 1.5}, g);
     sv("text", {x: x(Math.max(d.worst, d.hi || 0)) + 8, y: y + 4, class: "val", "font-weight": fc ? 700 : 400}, g, pct(d.worst));
     const hit = sv("rect", {x: 0, y: y - rowH / 2, width: W, height: rowH, fill: "transparent"}, g);
-    bindTip(hit, e => showTip(e, d.label, [[fc ? css("--fcrl") : css("--muted-mark"), pct1(d.worst), "worst-off tenth"], [null, `${pct1(d.lo)} to ${pct1(d.hi)}`, "95% interval"], [null, pct1(d.lowest), "lowest region"], [null, pct1(d.overall), "total need covered"]]));
+    const tipRows = [[fc ? css("--fcrl") : css("--muted-mark"), pct1(d.worst), "worst-off tenth"]];
+    if (d.lo != null) tipRows.push([null, `${pct1(d.lo)} to ${pct1(d.hi)}`, "95% interval"]);
+    tipRows.push([null, pct1(d.lowest), "least protected region"], [null, pct1(d.overall), "total need covered"]);
+    bindTip(hit, e => showTip(e, d.label, tipRows));
   });
-  table(document.getElementById("t-worst"), ["Rule", "Worst-off tenth", "Lowest region", "Total covered", "Above need"], rows.map(d => [d.label, pct1(d.worst), pct1(d.lowest), pct1(d.overall), pct1(d.leak)]));
+  table(document.getElementById("t-worst"), ["Rule", "Worst-off tenth", "Least protected region", "Total need covered"], rows.map(d => [d.label, pct1(d.worst), pct1(d.lowest), pct1(d.overall)]));
 }
 
 let stressMetric = "lowest";
@@ -398,35 +394,41 @@ function stress() {
     const b = el("button", {type: "button", "aria-pressed": String(k === stressMetric)}, seg, label);
     b.addEventListener("click", () => { stressMetric = k; stress(); });
   }
+  document.getElementById("s-stress").textContent = `Same budget, three rules, ${scopeName()}.`;
   legend(document.getElementById("l-stress"), ["fcrl", "std", "fc"]);
-  const scenarios = [...new Set(DATA.stress.map(d => d.scenario))];
   const short = {"as observed": "As observed", "unexpected 30% rise in energy prices": "Prices +30%", "20% cut in the support budget": "Budget −20%", "price rise and budget cut together": "Both"};
-  const W = 520, groupH = 74, top = 4, left = 104, right = 46, H = top + scenarios.length * groupH + 24;
-  const max = stressMetric === "attain" ? 1 : 0.6;
+  const values = {};
+  for (const sc of DATA.scenarios) {
+    const rows = DATA.stress.filter(d => d.sc === sc && (country === "all" || d.c === country));
+    values[sc] = Object.fromEntries(["fcrl", "std", "fc"].map(k => [k, agg(rows, k)]));
+  }
+  const W = 520, groupH = 74, top = 4, left = 104, right = 46, H = top + DATA.scenarios.length * groupH + 24;
   const s = svg(document.getElementById("c-stress"), W, H);
-  const x = v => left + v * (W - left - right) / max;
-  axis(s, x, top, H - 24, max === 1 ? [0, 0.25, 0.5, 0.75, 1] : [0, 0.2, 0.4, 0.6], pct);
-  scenarios.forEach((sc, i) => {
+  const x = v => left + Math.min(v, 1) * (W - left - right);
+  axis(s, x, top, H - 24, [0, 0.25, 0.5, 0.75, 1], pct);
+  DATA.scenarios.forEach((sc, i) => {
     const y0 = top + i * groupH + 8;
     sv("text", {x: left - 10, y: y0 + 30, "text-anchor": "end", class: "lab"}, s, short[sc] || sc);
     ["fcrl", "std", "fc"].forEach((k, j) => {
-      const d = DATA.stress.find(e => e.scenario === sc && e.k === k);
-      if (!d) return;
+      const d = values[sc][k];
+      const v = d[stressMetric];
+      if (v == null) return;
       const y = y0 + j * 20;
-      const w = Math.max(0, x(d[stressMetric]) - left);
+      const w = Math.max(0, x(v) - left);
       const g = sv("g", {class: "mark"}, s);
       sv("path", {d: `M${left},${y} h${Math.max(w - 4, 0)} a4,4 0 0 1 4,4 v8 a4,4 0 0 1 -4,4 h${-Math.max(w - 4, 0)} z`, fill: css("--" + k)}, g);
-      sv("text", {x: x(d[stressMetric]) + 6, y: y + 12, class: "val", "font-weight": k === "fcrl" ? 700 : 400}, g, pct(d[stressMetric]));
+      sv("text", {x: x(v) + 6, y: y + 12, class: "val", "font-weight": k === "fcrl" ? 700 : 400}, g, pct(v));
       const hit = sv("rect", {x: left, y: y - 2, width: W - left, height: 20, fill: "transparent"}, g);
-      bindTip(hit, e => showTip(e, sc, [[css("--" + k), pct1(d[stressMetric]), NAME[k]], [null, pct1(d.overall), "total need covered"]]));
+      bindTip(hit, e => showTip(e, short[sc] || sc, [[css("--" + k), pct1(v), NAME[k]], [null, pct1(d.overall), "total need covered"]]));
     });
   });
-  table(document.getElementById("t-stress"), ["Scenario", "FCRL-energy", "Equal per poor resident", "Forecast need"], scenarios.map(sc => [short[sc] || sc, ...["fcrl", "std", "fc"].map(k => pct1((DATA.stress.find(e => e.scenario === sc && e.k === k) || {})[stressMetric]))]));
+  table(document.getElementById("t-stress"), ["Scenario", "FCRL-energy", "Equal per poor resident", "Forecast need"], DATA.scenarios.map(sc => [short[sc] || sc, ...["fcrl", "std", "fc"].map(k => pct1(values[sc][k][stressMetric]))]));
 }
 
 function strip() {
   const data = regionsInScope();
   const rows = [["std", "Equal amount per resident at risk of poverty"], ["fc", "Proportional to forecast need"], ["fcrl", "FCRL-energy"]];
+  document.getElementById("s-strip").textContent = `One dot per region and test season, ${scopeName()}. The black mark is the lowest coverage. Hover a dot to see the region; click to open it below.`;
   const W = 1060, rowH = 92, top = 18, left = 290, right = 20, H = top + rows.length * rowH + 26;
   const host = document.getElementById("c-strip");
   const s = svg(host, W, H);
@@ -458,7 +460,7 @@ function strip() {
 function countryChart() {
   legend(document.getElementById("l-country"), ["std", "fcrl"]);
   const groups = {};
-  for (const d of DATA.regions) { const g = groups[d.c] || (groups[d.c] = {std: 1, fcrl: 1}); g.std = Math.min(g.std, d.v.std); g.fcrl = Math.min(g.fcrl, d.v.fcrl); }
+  for (const c of DATA.countries) { const rows = DATA.regions.filter(d => d.c === c.code); groups[c.code] = {std: agg(rows, "std").lowest, fcrl: agg(rows, "fcrl").lowest}; }
   const names = Object.fromEntries(DATA.countries.map(c => [c.code, c.name]));
   const list = Object.entries(groups).sort((a, b) => b[1].fcrl - a[1].fcrl);
   const W = 1060, rowH = 44, top = 6, left = 130, right = 30, H = top + list.length * rowH + 26;
@@ -529,7 +531,7 @@ function chips() {
   for (const c of all) {
     const b = el("button", {class: "chip", type: "button", "aria-pressed": String(country === c.code)}, host, c.name);
     b.style.marginRight = "6px";
-    b.addEventListener("click", () => { country = c.code; chips(); regionList(); strip(); countryChart(); region(); });
+    b.addEventListener("click", () => { country = c.code; chips(); tiles(); worst(); stress(); regionList(); strip(); countryChart(); region(); });
   }
 }
 
@@ -540,7 +542,7 @@ function themeLabel() { const dark = document.documentElement.dataset.theme ? do
 themeButton.addEventListener("click", () => { const dark = themeButton.textContent === "Dark mode"; document.documentElement.dataset.theme = dark ? "dark" : "light"; themeLabel(); render(); });
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { themeLabel(); render(); });
 const foot = document.getElementById("foot");
-foot.appendChild(document.createTextNode(`Data: Eurostat (degree days, population, poverty, energy prices). Coverage is support divided by the estimated energy need of residents at risk of poverty. Source: ${DATA.meta.source}. `));
+foot.appendChild(document.createTextNode((DATA.meta.source === "synthetic" ? "Synthetic demonstration data. " : "Data: Eurostat (degree days, population, poverty, energy prices). ") + "Coverage is support divided by the estimated energy need of residents at risk of poverty. "));
 el("a", {href: "https://github.com/uomoathens/fcrl-energy"}, foot, "Code, method and limitations on GitHub");
 themeLabel();
 render();
