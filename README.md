@@ -1,6 +1,6 @@
 # FCRL-energy: fair and sustainable allocation of energy support under price shocks
 
-[![CI](../../actions/workflows/ci.yml/badge.svg)](../../actions/workflows/ci.yml)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24033903.svg)](https://doi.org/10.5281/zenodo.24033903) [![CI](../../actions/workflows/ci.yml/badge.svg)](../../actions/workflows/ci.yml)
 [![Energy support run](../../actions/workflows/energy-support.yml/badge.svg)](../../actions/workflows/energy-support.yml)
 
 **Dimitrios Sargiotis** · School of Civil Engineering, National Technical University of Athens · [ORCID 0009-0006-3644-4561](https://orcid.org/0009-0006-3644-4561) · [users.ntua.gr/dims](https://users.ntua.gr/dims/)
@@ -181,7 +181,7 @@ Degree days, population, poverty and price data: © European Union, Eurostat; re
 
 Please cite both the software and the book; GitHub's **Cite this repository** button reads `CITATION.cff`.
 
-> Sargiotis, D. (2026). *FCRL-energy: fair and sustainable allocation of energy support under price shocks* (Version 1.0.0) [Computer software]. https://github.com/uomoathens/fcrl-energy
+> Sargiotis, D. (2026). *FCRL-energy: fair and sustainable allocation of energy support under price shocks* (Version 1.0.0) [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.24033903
 
 > Sargiotis, D. (2026). *AI with Integrity: Shaping Ethical, Transparent, and Equitable Urban Futures*. Springer Nature Switzerland. https://doi.org/10.1007/978-3-032-31133-7
 

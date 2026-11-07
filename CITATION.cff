@@ -4,6 +4,7 @@ title: "FCRL-energy: fair and sustainable allocation of energy support under pri
 type: software
 version: "1.0.0"
 date-released: "2026-11-07"
+doi: "10.5281/zenodo.24033903"
 authors:
   - family-names: Sargiotis
     given-names: Dimitrios
